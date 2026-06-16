@@ -46,6 +46,13 @@ def notify(title, content):
 def parse_action_response(res_json):
     """解析【接口 A】返回的轻量级压缩包，同时提取最新到期时间、操作状态码"""
     action_info = {"expires_at": None, "status_code": "未知"}
+    
+    # 📝 DEBUG 埋点：在日志中打印原始返回包，方便你进 GitHub Actions 复制和分析结构
+    try:
+        log(f"🔍 [DEBUG 原始响应体] {json.dumps(res_json, ensure_ascii=False)}")
+    except Exception:
+        log(f"🔍 [DEBUG 原始响应体] {res_json}")
+
     try:
         outer_p = res_json.get("p", {})
         keys = outer_p.get("k", [])
@@ -66,7 +73,8 @@ def parse_action_response(res_json):
         if "error" in keys:
             err_idx = keys.index("error")
             if err_idx < len(values):
-                action_info["status_code"] = values[err_idx].get("s", "未知")
+                # 兼容处理数字或字符串类型的状态码
+                action_info["status_code"] = str(values[err_idx].get("s", values[err_idx].get("n", "未知")))
     except Exception as e:
         log(f"解析续期动作响应异常: {e}")
     return action_info
@@ -155,14 +163,17 @@ def run_auto_renew():
     # 2. 发送【接口 A】请求：触发续期动作
     log("⚡ 步骤 1/2: 正在向后端发送续期指令...")
     expires_at = None
+    status_code = "未知"
+    
     try:
         action_res = requests.post(RENEW_ACTION_URL, headers=base_headers, json=renew_payload, timeout=15)
         if action_res.status_code == 200:
             action_info = parse_action_response(action_res.json())
             expires_at = action_info["expires_at"]
+            status_code = str(action_info["status_code"])
             
             log("   📥 [接口A 返回快照] ----------------------------")
-            log(f"   动作执行状态码 (Error Code) : {action_info['status_code']} (注: 1通常代表无异常)")
+            log(f"   动作执行状态码 (Error Code) : {status_code} (注: 1通常代表无异常)")
             log(f"   捕获动作到期时间 (Expires At): {expires_at}")
             log("   ------------------------------------------------")
         else:
@@ -174,9 +185,16 @@ def run_auto_renew():
         notify("服务器自动续期异常", f"Action 阶段异常: {e}")
         sys.exit(1)
 
+    # 🛠️ 【核心容错逻辑优化】
+    # 即使没解析出新日期，但只要状态码是 "1"，说明后端极大可能处理成功了。
+    # 我们选择“不中断”，允许它继续去步骤 2 捞取【接口 B】，从全量包里碰碰运气。
     if not expires_at:
-        log("⚠️ 接口 A 响应成功，但未能提取出新到期日期，流程中断。")
-        sys.exit(1)
+        if status_code == "1":
+            log("⚠️ 接口 A 未提取出新到期日期，但状态码为 1。触发容错机制：尝试进入步骤 2 刷新完整数据...")
+            expires_at = "未从接口A捕获(等待详情确认)"
+        else:
+            log(f"🛑 接口 A 未能提取出新到期日期，且状态码异常({status_code})，流程安全中断。")
+            sys.exit(1)
 
     # 3. 发送【接口 B】请求：拉取续期后的最终详情状态
     log("🔍 步骤 2/2: 续期指令已生效，正在拉取最终服务器完整状态确认...")
@@ -185,9 +203,13 @@ def run_auto_renew():
     try:
         detail_res = requests.post(RENEW_DETAIL_URL, headers=base_headers, json=renew_payload, timeout=15)
         if detail_res.status_code == 200:
-            server_info = parse_detail_response(detail_res.json())
+            detail_json = detail_res.json()
+            server_info = parse_detail_response(detail_json)
             server_name = server_info["name"]
             server_status = server_info["status"]
+            
+            # 如果步骤 1 没拿到时间，看看能不能从接口 B 的原始结构里正则或者肉眼分析出来
+            # 这里先保持原样，靠下方最终打印
         else:
             log(f"⚠️ 详情刷新接口返回状态码 {detail_res.status_code}，将使用原缺省值打印日志。")
     except Exception as e:
@@ -201,10 +223,11 @@ def run_auto_renew():
     log("--------------------------------------------------")
     
     notify(
-        "服务器自动续期成功", 
-        f"服务器 [{server_name}] 续期成功！\n"
+        "服务器自动续期确认", 
+        f"服务器 [{server_name}] 续期动作已触发！\n"
         f"当前运行状态：{server_status}\n"
-        f"最新到期时间：{expires_at}"
+        f"接口A截获时间：{expires_at}\n\n"
+        f"💡 提示：如果到期时间不准，请登录 GitHub Actions 查看 [DEBUG 原始响应体] 日志结构。"
     )
 
 if __name__ == "__main__":
