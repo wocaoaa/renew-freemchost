@@ -15,11 +15,11 @@ SUPABASE_ANON_KEY = os.getenv("ANON_KEY")
 
 # 3. 路由配置 (2026-06-05 最新双接口链路)
 # 【接口 A】触发续期的 Action 路由
-RENEW_ACTION_URL = "https://new.freemchost.com/_serverFn/798181797bd95a02dee916a26c18d3539a58152db8660e097ca48d7cdd8ee50c"
+RENEW_ACTION_URL = "https://new.freemchost.com/_serverFn/c3a45c08362f2f613bbb6d511a3733a9e85e561709d48bec9280e82a4aa4f47d"
 # 【接口 B】获取最终完整状态的 Detail 路由
 RENEW_DETAIL_URL = "https://new.freemchost.com/_serverFn/c3a45c08362f2f613bbb6d511a3733a9e85e561709d48bec9280e82a4aa4f47d"
 
-SERVER_ID = "c1487010-5680-43b7-932b-f6b6de2d893c"
+SERVER_ID = "2f6dad40-16e6-450a-951d-1af84993cb9d"
 
 # 4. 消息推送配置（可选，可从 GitHub Secrets 读取，不需要保持 None）
 SCKEY = os.getenv("SCKEY")
