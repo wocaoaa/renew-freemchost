@@ -17,7 +17,7 @@ SUPABASE_ANON_KEY = os.getenv("ANON_KEY")
 # 【接口 A】触发续期的 Action 路由
 RENEW_ACTION_URL = "https://new.freemchost.com/_serverFn/c3a45c08362f2f613bbb6d511a3733a9e85e561709d48bec9280e82a4aa4f47d"
 # 【接口 B】获取最终完整状态的 Detail 路由
-RENEW_DETAIL_URL = "https://new.freemchost.com/_serverFn/c3a45c08362f2f613bbb6d511a3733a9e85e561709d48bec9280e82a4aa4f47d"
+RENEW_DETAIL_URL = "https://new.freemchost.com/_serverFn/4f1effc1137be00b6dda3a226e97ae9c9a3e36e88cb167929270f1ed233df17e"
 
 SERVER_ID = "2f6dad40-16e6-450a-951d-1af84993cb9d"
 
